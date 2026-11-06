@@ -21,7 +21,6 @@ sub init()
     m.nav = 0
     m.hero = 0
     m.homeRows = rpHomeRowsBuild([], [])
-    m.rowFocus = 0
     m.images = []
     m.focusItems = []
     m.kind = "movie"
@@ -766,7 +765,6 @@ sub commitSetup()
     m.features = []
     m.homeSeries = []
     m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
-    m.rowFocus = 0
     m.view = "home"
     m.zone = "hero"
     m.nav = 0
@@ -822,6 +820,7 @@ sub refreshHome()
     if m.catalogMode = "hd" and not usesOnlineHd()
         m.features = m.hdLibrary.movies
         m.homeSeries = m.hdLibrary.series
+        m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
         return
     end if
     m.homeLoading = true
@@ -850,8 +849,17 @@ sub homeFetched(event as object)
             if entry.mode <> m.catalogMode then return
             if m.catalogMode = "hd" and entry.provider <> m.hdProvider then return
             if answer.ok
-                if entry.kind = "movie" then m.features = answer.items else m.homeSeries = answer.items
-                m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
+                if entry.kind = "movie"
+                    m.features = answer.items
+                    m.homeRows[0].items = m.features
+                    m.homeRows[0].cursor = 0
+                    m.homeRows[0].offset = 0
+                else
+                    m.homeSeries = answer.items
+                    m.homeRows[1].items = m.homeSeries
+                    m.homeRows[1].cursor = 0
+                    m.homeRows[1].offset = 0
+                end if
             else
                 m.note = "No se pudo actualizar una de las filas. Puedes explorar desde el menú o volver a intentar."
             end if
@@ -994,7 +1002,6 @@ sub commitHdSource()
         m.features = []
         m.homeSeries = []
         m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
-        m.rowFocus = 0
         m.nav = 0
         m.view = "home"
         m.zone = "hero"
@@ -1126,33 +1133,33 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if key = "right" and m.features.count() > 0 then m.hero = 1
             if key = "up" then m.zone = "nav": drawScreen(): return true
-            if key = "down" and m.homeRows.count() > 0 then m.zone = "home-row-0"
+            if key = "down" and m.homeRows.count() > 0 and m.homeRows[0].items.count() > 0 then m.zone = "home-row-0"
             if key = "OK"
                 if m.features.count() > 0 then openDetails(m.features[0],"home",m.hero=0) else refreshHome(): drawScreen()
                 return true
             end if
         else if left(m.zone,9) = "home-row-"
-            rowIndex = val(mid(m.zone,10))
+            rowIndex = val(mid(m.zone,10),10)
             row = m.homeRows[rowIndex]
             if key = "left"
-                next = rpRowAdvance(row,row.items,-1,5)
-                if next.cursor = row.cursor then m.zone = "nav": drawScreen(): return true
-                offsetChanged = next.offset <> row.offset
-                row.cursor = next.cursor
-                row.offset = next.offset
+                moved = rpRowAdvance(row,row.items,-1,5)
+                if moved.cursor = row.cursor then m.zone = "nav": drawScreen(): return true
+                offsetChanged = moved.offset <> row.offset
+                row.cursor = moved.cursor
+                row.offset = moved.offset
                 if offsetChanged then drawScreen(): return true
             end if
             if key = "right"
-                next = rpRowAdvance(row,row.items,1,5)
-                offsetChanged = next.offset <> row.offset
-                row.cursor = next.cursor
-                row.offset = next.offset
+                moved = rpRowAdvance(row,row.items,1,5)
+                offsetChanged = moved.offset <> row.offset
+                row.cursor = moved.cursor
+                row.offset = moved.offset
                 if offsetChanged then drawScreen(): return true
             end if
             if key = "up"
                 if rowIndex = 0 then m.zone = "hero" else m.zone = "home-row-"+(rowIndex-1).toStr()
             end if
-            if key = "down" and rowIndex < m.homeRows.count()-1 then m.zone = "home-row-"+(rowIndex+1).toStr()
+            if key = "down" and rowIndex < m.homeRows.count()-1 and m.homeRows[rowIndex+1].items.count() > 0 then m.zone = "home-row-"+(rowIndex+1).toStr()
             if key = "OK" and row.items.count() > 0 then openDetails(row.items[row.cursor],"home"): return true
         end if
     else if m.view = "browse"

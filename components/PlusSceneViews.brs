@@ -262,11 +262,11 @@ sub homeScreen()
         words(text,340,252,1470,80,29,"0xB3B3B8FF").wrap = true
         selectable("hero",0,"Actualizar",337,335,317,70,true)
     end if
-    ' Only the first row gets the full-size card (parity with the pre-redesign
-    ' "Top 3 películas" row); later rows use a shorter card so two full rows
-    ' (heading + cards + title, nothing clipped) fit below the hero on a
-    ' 1080px-tall screen — see drawRow()'s header comment for the math.
+    ' Both rows use the same card size (see drawRow()'s header comment for the
+    ' horizontal/vertical math) so row 0 and row 1 look consistent and both
+    ' fit below the hero on a 1080px-tall screen.
     rowY = 454
+    cardH = 163
     for r = 0 to m.homeRows.count()-1
         row = m.homeRows[r]
         heading = row.heading
@@ -276,20 +276,36 @@ sub homeScreen()
             if usesOnlineHd() then heading = "Series por descubrir" else heading = "Documentales en español"
         end if
         words(heading,318,rowY,1500,47,34)
-        cardH = 251
-        if r > 0 then cardH = 120
         drawRow(row,r,rowY+56,cardH)
         rowY += 56 + cardH + 54 + 24
     end for
     topBar()
 end sub
 
-' y: top of the card row. cardH: card height in px — the caller sizes this per
-' row so stacked rows fit on screen (homeScreen() uses 251 for row 0 and 120
-' for later rows; see the trace in task-4-report.md).
+' y: top of the card row. cardH: card height in px, same for every row so the
+' Home rows look consistent (both rows pass 163 — see homeScreen()).
+'
+' Horizontal: 5 visible cards (windowSize=5 in rpRowAdvance) must fit, with
+' their 1.08x focus-zoom bounding box, inside the 1920px canvas starting at
+' the existing x=318 left margin. With cardW=290, gap=30: slot 4 (the
+' rightmost visible card) sits at x = 318 + 4*(290+30) = 1598, right edge
+' 1598+290 = 1888. Zooming 1.08x around the card's own center adds
+' cardW*0.04 = 11.6px on each side, so the zoomed right edge lands at
+' 1888+11.6 = 1899.6, inside the 1920px canvas with margin to spare.
+'
+' Vertical (see homeScreen()): heading (47px) + 56px gap + cardH (163px) +
+' title (8px gap + 46px tall = 54px) + 24px gap before the next heading.
+' Row 0 starts at rowY=454 (hero's bottom edge): heading bottom 501, cards
+' 510..673, title 681..727, next rowY = 454+56+163+54+24 = 751.
+' Row 1 starts at rowY=751: heading bottom 798, cards 807..970, title
+' 978..1024. 1024 <= 1080, so both rows fully fit.
 sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
-    cardW = 480
-    gap = 36
+    if row.items.count() = 0
+        words("Cargando…",318,y,1500,40,25,"0xB3B3B8FF")
+        return
+    end if
+    cardW = 290
+    gap = 30
     windowSize = 5
     last = row.offset + windowSize - 1
     if last > row.items.count()-1 then last = row.items.count()-1
@@ -300,10 +316,10 @@ sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
         card = m.canvas.createChild("Group")
         card.translation = [x,y]
         card.scaleRotateCenter = [cardW/2,cardH/2]
-        panel = card.createChild("Rectangle")
-        panel.width = cardW
-        panel.height = cardH
-        panel.color = "0x18181BFF"
+        bg = card.createChild("Rectangle")
+        bg.width = cardW
+        bg.height = cardH
+        bg.color = "0x18181BFF"
         uri = item.background
         if uri = "" then uri = item.poster
         if uri <> ""
@@ -690,7 +706,7 @@ sub paintFocus()
         chosen = false
         if entry.zone = m.zone
             if m.zone = "hero" then chosen = entry.index = m.hero
-            if left(m.zone,9) = "home-row-" then chosen = entry.index = m.homeRows[val(mid(m.zone,10))].cursor
+            if left(m.zone,9) = "home-row-" then chosen = entry.index = m.homeRows[val(mid(m.zone,10),10)].cursor
             if m.zone = "grid" then chosen = entry.index = m.cursor
             if m.zone = "action" then chosen = entry.index = m.action
             if m.zone = "episodes" then chosen = entry.index = m.episode
