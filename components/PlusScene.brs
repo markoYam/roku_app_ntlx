@@ -25,6 +25,12 @@ sub init()
     m.focusItems = []
     m.kind = "movie"
     m.query = ""
+    m.searchText = ""
+    m.searchKind = "movie"
+    m.searchOrigin = "home"
+    m.searchKindCursor = 0
+    m.kbd = 2
+    m.searchTimer = invalid
     m.offset = 0
     m.nextOffset = 0
     m.more = false
@@ -204,7 +210,7 @@ sub fetched(event as object)
             if context.doesExist("last") and context.last then m.cursor = m.titles.count()-1
             if m.cursor < 0 then m.cursor = 0
         end if
-        m.zone = "grid"
+        if m.view <> "search" then m.zone = "grid"
         if answer.partial = true then m.note = "Una fuente no respondió. Se muestran las opciones disponibles."
     else if context.operation = "meta"
         m.detail = answer.item
@@ -343,7 +349,7 @@ sub playerDiagnostic(event as object)
     if type(sample) = "roAssociativeArray" then print "[RokuPlus playback] "; FormatJson(sample)
 end sub
 
-sub openSearch()
+sub openSearchDialog()
     cancelRequest()
     if m.kind <> "series" then m.kind = "movie"
     m.view = "browse"
@@ -480,6 +486,9 @@ sub returnOneStep()
         else if m.detailOrigin = "browse"
             m.view = "browse"
             m.zone = "grid"
+        else if m.detailOrigin = "search"
+            m.view = "search"
+            m.zone = "search-results"
         else
             goHome()
             return
@@ -490,6 +499,9 @@ sub returnOneStep()
         m.view = "detail"
         m.zone = "action"
         m.action = 0
+    else if m.view = "search"
+        leaveSearch()
+        return
     else
         goHome()
         return
@@ -898,7 +910,7 @@ sub loadBrowsePage(offset as integer, last = false as boolean)
         m.nextOffset = 0
         m.more = false
         m.cursor = 0
-        m.zone = "grid"
+        if m.view <> "search" then m.zone = "grid"
         drawScreen()
     else
         fetch({operation:"catalog",offset:offset,last:last})
@@ -1095,7 +1107,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openSearch()
         return true
     end if
-    if m.busy and m.view <> "live" then return true
+    if m.busy and m.view <> "live" and m.view <> "search" then return true
     if m.zone = "nav"
         if key = "up" and m.nav > 0 then m.nav--
         if key = "down" and m.nav < 5 then m.nav++
@@ -1107,10 +1119,13 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if m.view = "detail" then m.zone = "action"
             if m.view = "episodes" then m.zone = "episodes"
             if m.view = "settings" then m.zone = "settings"
+            if m.view = "search" then m.zone = "kbd"
         end if
         drawScreen()
         return true
     end if
+    if m.zone = "search-btn" then return searchButtonKey(key)
+    if m.view = "search" then return searchKey(key)
     if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
@@ -1132,7 +1147,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 m.hero = 0
             end if
             if key = "right" and m.features.count() > 0 then m.hero = 1
-            if key = "up" then m.zone = "nav": drawScreen(): return true
+            if key = "up" then m.zone = "search-btn": drawScreen(): return true
             if key = "down" and m.homeRows.count() > 0 and m.homeRows[0].items.count() > 0 then m.zone = "home-row-0"
             if key = "OK"
                 if m.features.count() > 0 then openDetails(m.features[0],"home",m.hero=0) else refreshHome(): drawScreen()
@@ -1177,9 +1192,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
                 loadBrowsePage(previous,true)
                 return true
             else
-                m.zone = "nav"
-                m.nav = 1
-                if m.kind = "series" then m.nav = 2
+                m.zone = "search-btn"
                 drawScreen()
                 return true
             end if
