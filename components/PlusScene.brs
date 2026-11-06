@@ -1114,7 +1114,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
     if m.view = "settings"
         if key = "left" then m.zone = "nav": drawScreen(): return true
         if key = "up" and m.settingsCursor > 0 then m.settingsCursor--
-        if key = "down" and m.settingsCursor < 4 then m.settingsCursor++
+        if key = "down" and m.settingsCursor < 3 then m.settingsCursor++
         if key = "OK"
             if m.settingsCursor = 0 then beginSetup(true,false)
             if m.settingsCursor = 1 then beginSetup(true,true)

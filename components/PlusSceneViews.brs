@@ -1,5 +1,10 @@
-' Original Liquid Glass-inspired Roku Plus chrome. All coordinates use FHD units.
-' The glass is a static translucent treatment; it does not blur video at runtime.
+' Roku Plus — Netflix-inspired chrome. All coordinates use FHD units.
+' Flat dark surfaces, white focus, red accent. Navigation zones and indices are
+' unchanged from the previous design so PlusScene.brs key handling still applies.
+function nfRed() as string
+    return "0xE50914FF"
+end function
+
 function panel(x as float, y as float, w as float, h as float, color as string) as object
     node = m.canvas.createChild("Rectangle")
     node.translation = [x,y]
@@ -9,7 +14,7 @@ function panel(x as float, y as float, w as float, h as float, color as string) 
     return node
 end function
 
-function words(text as string, x as float, y as float, w as float, h as float, size as integer, color = "0xF5F5F7FF" as string) as object
+function words(text as string, x as float, y as float, w as float, h as float, size as integer, color = "0xFFFFFFFF" as string) as object
     node = m.canvas.createChild("Label")
     node.translation = [x,y]
     node.width = w
@@ -22,7 +27,38 @@ function words(text as string, x as float, y as float, w as float, h as float, s
     return node
 end function
 
+function bold(text as string, x as float, y as float, w as float, h as float, size as integer, color = "0xFFFFFFFF" as string) as object
+    node = words(text,x,y,w,h,size,color)
+    font = CreateObject("roSGNode","Font")
+    font.uri = "font:BoldSystemFontFile"
+    font.size = size
+    node.font = font
+    return node
+end function
+
+' Old glass PNGs are replaced by flat Netflix-style surfaces.
+function flatColor(uri as string) as string
+    if type(m.nfFlat) <> "roAssociativeArray"
+        p = "pkg:/images/ui/"
+        m.nfFlat = {}
+        m.nfFlat[p+"pill.png"] = "0x232323FF"
+        m.nfFlat[p+"setup-card.png"] = "0x232323FF"
+        m.nfFlat[p+"button-dark.png"] = "0x6D6D6E99"
+        m.nfFlat[p+"button-white.png"] = "0xFFFFFFFF"
+        m.nfFlat[p+"live-preview-base.png"] = "0x0A0A0AFF"
+        m.nfFlat[p+"app-background.png"] = "0x141414FF"
+        m.nfFlat[p+"hero-shade.png"] = "0x00000000"
+        m.nfFlat[p+"hero-mask.png"] = "0x00000000"
+        m.nfFlat[p+"card-landscape-mask.png"] = "0x00000000"
+        m.nfFlat[p+"card-poster-mask.png"] = "0x00000000"
+    end if
+    if m.nfFlat.doesExist(uri) then return m.nfFlat[uri]
+    return ""
+end function
+
 function art(uri as string, x as float, y as float, w as float, h as float, mode = "scaleToFill" as string) as object
+    flat = flatColor(uri)
+    if flat <> "" then return panel(x,y,w,h,flat)
     poster = m.canvas.createChild("Poster")
     poster.translation = [x,y]
     poster.width = w
@@ -30,40 +66,53 @@ function art(uri as string, x as float, y as float, w as float, h as float, mode
     poster.loadWidth = int(w)
     poster.loadHeight = int(h)
     poster.loadDisplayMode = mode
-    poster.uri = themeAsset(uri)
+    poster.uri = uri
     m.images.push(poster)
     return poster
 end function
 
+' Kept for compatibility: the Netflix design has a single look.
 function themeAsset(uri as string) as string
-    if m.theme <> "classic" then return uri
-    prefix = "pkg:/images/ui/"
-    if left(uri,len(prefix)) <> prefix then return uri
-    if type(m.uiClassicAssetMap) <> "roAssociativeArray"
-        m.uiClassicAssetMap = {}
-        for each stem in ["app-background","rail-glass","button-white","button-dark","nav-active","nav-focus","setup-card","pill","glass-row","glass-reality","glass-section","glass-chip","glass-tile","glass-badge","glass-notice","live-preview-frame","live-preview-mask","live-channel-row","live-channel-selected","live-logo-badge","live-empty"]
-            m.uiClassicAssetMap[stem+".png"] = stem+"-classic.png"
-        end for
-    end if
-    name = mid(uri,len(prefix)+1)
-    if m.uiClassicAssetMap.doesExist(name) then return prefix+m.uiClassicAssetMap[name]
     return uri
 end function
 
 function glassSurface(name as string, x as float, y as float, w as float, h as float) as object
-    return art("pkg:/images/ui/"+name+".png",x,y,w,h)
+    color = "0x232323FF"
+    if name = "glass-notice" then color = "0x000000E6"
+    if name = "glass-row" then color = "0x2A2A2AFF"
+    if name = "live-channel-row" then color = "0x1F1F1FFF"
+    if name = "live-channel-selected" then color = "0x333333FF"
+    if name = "live-logo-badge" then color = "0xE5E5E5FF"
+    if name = "live-empty" then color = "0x1F1F1FFF"
+    if name = "live-scroll-track" then color = "0x333333FF"
+    if name = "live-scroll-thumb" then color = nfRed()
+    if name = "glass-tile" or name = "glass-section" or name = "live-preview-frame" or name = "rail-glass" then color = "0x00000000"
+    if name = "hero-mask" or name = "card-landscape-mask" or name = "card-poster-mask" then color = "0x00000000"
+    node = panel(x,y,w,h,color)
+    if name = "live-channel-selected" then panel(x,y,6,h,nfRed())
+    if name = "glass-notice" then panel(x,y,6,h,nfRed())
+    return node
+end function
+
+function outline(parent as object, x as float, y as float, w as float, h as float, t as integer, color as string) as object
+    g = parent.createChild("Group")
+    g.translation = [x,y]
+    sides = [[0,0,w,t],[0,h-t,w,t],[0,0,t,h],[w-t,0,t,h]]
+    for each s in sides
+        r = g.createChild("Rectangle")
+        r.translation = [s[0],s[1]]
+        r.width = s[2]
+        r.height = s[3]
+        r.color = color
+    end for
+    return g
 end function
 
 sub thumbnail(uri as string, x as float, y as float, w as float, h as float, shape = "landscape" as string)
-    base = "0x1B221EFF"
-    if m.theme = "classic" then base = "0x101D2DFF"
-    panel(x,y,w,h,base)
+    panel(x,y,w,h,"0x2F2F2FFF")
     if uri <> ""
         if shape = "poster" then art(uri,x,y,w,h,"scaleToFit") else art(uri,x,y,w,h)
     end if
-    mask = "card-landscape-mask"
-    if shape = "poster" then mask = "card-poster-mask"
-    glassSurface(mask,x,y,w,h)
 end sub
 
 sub eraseScreen()
@@ -82,43 +131,51 @@ sub eraseScreen()
     m.focusItems = []
     m.canvas.removeChildrenIndex(m.canvas.getChildCount(),0)
     m.canvas.visible = true
-    art("pkg:/images/ui/app-background.png",0,0,1920,1080)
+    panel(0,0,1920,1080,"0x141414FF")
 end sub
 
+' Focus is a white frame (Netflix TV style). shape is accepted for
+' compatibility with existing callers but no longer changes the look.
 sub focusTarget(zone as string, index as integer, x as integer, y as integer, w as integer, h as integer, shape = "wide" as string, scaleNode = invalid as dynamic)
-    uri = "pkg:/images/ui/focus-button.png"
-    if shape = "card" then uri = "pkg:/images/ui/focus-card.png"
-    if shape = "landscape" then uri = "pkg:/images/ui/focus-landscape.png"
-    if shape = "setup" then uri = "pkg:/images/ui/setup-focus.png"
-    if shape = "catalog" then uri = "pkg:/images/ui/focus-catalog.png"
-    if shape = "live" then uri = "pkg:/images/ui/focus-live.png"
-    if shape = "reality" then uri = "pkg:/images/ui/focus-reality.png"
-    if shape = "live-channel" then uri = "pkg:/images/ui/live-row-focus.png"
-    if shape = "live-search" then uri = "pkg:/images/ui/focus-row.png"
-    if shape = "appearance" then uri = "pkg:/images/ui/focus-appearance.png"
-    if shape = "wide" and w > 1000 then uri = "pkg:/images/ui/focus-row.png"
-    edge = art(uri,x,y,w,h)
+    edge = outline(m.canvas,x,y,w,h,4,"0xFFFFFFFF")
     edge.visible = false
     m.focusItems.push({zone:zone,index:index,edge:edge,scaleNode:scaleNode})
 end sub
 
+' Buttons: gray (or red when primary) at rest, solid white with black text
+' when focused.
 sub selectable(zone as string, index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean)
-    uri = "pkg:/images/ui/button-dark.png"
-    ink = "0xF4F9FFFF"
-    if primary
-        uri = "pkg:/images/ui/button-white.png"
-        ink = "0x14283CFF"
-    end if
-    art(uri,x,y,w,h)
-    label = words(text,x+12,y+15,w-24,h-18,28,ink)
+    fill = "0x6D6D6E99"
+    if primary then fill = nfRed()
+    panel(x,y,w,h,fill)
+    label = bold(text,x+12,y,w-24,h,27,"0xFFFFFFFF")
     label.horizAlign = "center"
-    focusTarget(zone,index,x-4,y-4,w+8,h+8)
+    label.vertAlign = "center"
+    focus = m.canvas.createChild("Group")
+    focus.translation = [x,y]
+    focus.visible = false
+    bg = focus.createChild("Rectangle")
+    bg.width = w
+    bg.height = h
+    bg.color = "0xFFFFFFFF"
+    ink = focus.createChild("Label")
+    ink.translation = [12,0]
+    ink.width = w-24
+    ink.height = h
+    ink.color = "0x000000FF"
+    ink.text = text
+    ink.horizAlign = "center"
+    ink.vertAlign = "center"
+    font = CreateObject("roSGNode","Font")
+    font.uri = "font:BoldSystemFontFile"
+    font.size = 27
+    ink.font = font
+    m.focusItems.push({zone:zone,index:index,edge:focus,scaleNode:invalid})
 end sub
 
 sub brand(x as integer, y as integer)
-    art("pkg:/images/ui/logo.png",x,y,52,52)
-    words("R+",x+6,y+7,44,42,29,"0x14283CFF")
-    words("Roku Plus",x+69,y+6,212,48,32)
+    bold("ROKU",x,y,200,46,40,nfRed())
+    bold("PLUS",x+2,y+44,200,32,24,"0xFFFFFFFF")
 end sub
 
 function countryName() as string
@@ -133,8 +190,8 @@ function modeName() as string
 end function
 
 sub topBar()
-    glassSurface("rail-glass",24,24,250,1032)
-    brand(42,60)
+    panel(0,0,274,1080,"0x000000FF")
+    brand(48,58)
     labels = ["Inicio","Películas","Series","TV en vivo","Buscar","Configuración"]
     icons = ["home","movies","series","live","search","settings"]
     active = 0
@@ -148,14 +205,20 @@ sub topBar()
     end if
     for i = 0 to 5
         y = 190 + i * 82
-        if active = i then art("pkg:/images/ui/nav-active.png",34,y,230,65)
-        if m.zone = "nav" and m.nav = i then art("pkg:/images/ui/nav-focus.png",34,y,230,65)
-        art("pkg:/images/ui/"+icons[i]+".png",48,y+15,34,34)
-        words(labels[i],94,y+18,165,39,24)
+        focused = m.zone = "nav" and m.nav = i
+        if focused then panel(30,y,232,65,"0xFFFFFF26")
+        if active = i then panel(30,y+12,5,41,nfRed())
+        icon = art("pkg:/images/ui/"+icons[i]+".png",52,y+15,34,34)
+        if active = i or focused
+            bold(labels[i],100,y+16,160,39,24)
+        else
+            icon.opacity = 0.55
+            words(labels[i],100,y+16,160,39,24,"0x8C8C8CFF")
+        end if
     end for
-    panel(53,918,190,1,"0xCDDFEC55")
-    words(modeName(),53,945,202,36,20,"0xB9CBDCFF")
-    words(countryName(),53,983,202,55,21,"0x99AEC3FF").wrap = true
+    panel(53,918,190,1,"0xFFFFFF22")
+    words(modeName(),53,945,202,36,20,"0x8C8C8CFF")
+    words(countryName(),53,983,202,55,21,"0x6E6E6EFF").wrap = true
 end sub
 
 sub drawScreen()
@@ -182,45 +245,45 @@ sub drawScreen()
             if m.busy and type(m.pending) = "roAssociativeArray"
                 if m.pending.operation = "country" then text = "Cargando canales de " + countryName() + "…"
             end if
-            words(text,319,991,1544,71,24,"0xDBEAF6FF").wrap = true
+            words(text,325,991,1540,71,24,"0xE5E5E5FF").wrap = true
         end if
     end if
     paintFocus()
 end sub
 
 sub setupTvScreen()
-    brand(85,65)
+    brand(85,60)
     setupHeading = "CONFIGURACIÓN INICIAL · 1 DE 2"
     if m.setupFromSettings then setupHeading = "CONFIGURACIÓN · 1 DE 2"
-    words(setupHeading,87,177,1700,46,23,"0x9B9BA5FF")
-    words("Selecciona tu televisor",82,244,1750,92,62)
-    words("Elige la biblioteca que utilizarás. Podrás cambiarla después en Configuración.",87,350,1710,80,29,"0xB8B8C2FF").wrap = true
+    bold(setupHeading,87,177,1700,46,23,"0x8C8C8CFF")
+    bold("Selecciona tu televisor",82,240,1750,92,62)
+    words("Elige la biblioteca que utilizarás. Podrás cambiarla después en Configuración.",87,350,1710,80,29,"0xB3B3B3FF").wrap = true
     names = ["HD / Full HD","4K"]
     tags = ["HD","4K"]
     descriptions = ["Películas y series con selección de fuentes H.264 compatibles.","El catálogo ampliado de películas y series que ya conoces."]
     for i = 0 to 1
         x = 84 + i * 912
-        art("pkg:/images/ui/setup-card.png",x,466,838,300)
+        panel(x,466,838,300,"0x232323FF")
         art("pkg:/images/ui/tv.png",x+34,496,72,72)
-        words(tags[i],x+132,492,620,77,60)
+        bold(tags[i],x+132,492,620,77,60)
         words(names[i],x+38,588,760,54,34)
-        words(descriptions[i],x+38,654,760,91,25,"0xAFAFB9FF").wrap = true
+        words(descriptions[i],x+38,654,760,91,25,"0xB3B3B3FF").wrap = true
         recommended = (i = 0 and m.capabilities.recommendedCatalog = "hd") or (i = 1 and m.capabilities.recommendedCatalog = "hevc")
-        if recommended then words("Recomendado para esta Roku",x+38,785,790,44,24,"0xE5E5EAFF")
+        if recommended then bold("Recomendado para esta Roku",x+38,785,790,44,24,nfRed())
         focusTarget("setup",i,x-6,460,850,312,"setup")
     end for
-    words("La opción 4K describe el equipo. La calidad disponible depende de cada video.",87,881,1730,59,24,"0x888893FF").wrap = true
-    words("← / →: elegir     OK: continuar",87,1004,1730,42,24,"0xB9B9C2FF")
+    words("La opción 4K describe el equipo. La calidad disponible depende de cada video.",87,881,1730,59,24,"0x808080FF").wrap = true
+    words("← / →: elegir     OK: continuar",87,1004,1730,42,24,"0xB3B3B3FF")
 end sub
 
 sub setupCountryScreen()
-    brand(85,65)
+    brand(85,60)
     setupHeading = "CONFIGURACIÓN INICIAL · 2 DE 2"
     if m.setupFromSettings then setupHeading = "CONFIGURACIÓN · 2 DE 2"
     if m.setupCountryOnly then setupHeading = "TU PAÍS O REGIÓN"
-    words(setupHeading,87,177,1700,46,23,"0x9B9BA5FF")
-    words("¿En qué país estás?",82,250,660,173,60).wrap = true
-    words("Mostraremos los canales de tu país o región. Puedes cambiarlo cuando quieras.",87,470,620,193,31,"0xB8B8C2FF").wrap = true
+    bold(setupHeading,87,177,1700,46,23,"0x8C8C8CFF")
+    bold("¿En qué país estás?",82,250,660,173,60).wrap = true
+    words("Mostraremos los canales de tu país o región. Puedes cambiarlo cuando quieras.",87,470,620,193,31,"0xB3B3B3FF").wrap = true
     art("pkg:/images/ui/world.png",87,708,98,98)
     countries = orbitCountries()
     first = (m.setupCountry \ 7) * 7
@@ -228,14 +291,14 @@ sub setupCountryScreen()
         n = first + i
         if n < countries.count()
             y = 268+i*91
-            art("pkg:/images/ui/pill.png",793,y,1035,79)
-            words(ucase(countries[n].code),824,y+21,106,42,25,"0xA2A2ADFF")
+            panel(793,y,1035,79,"0x232323FF")
+            bold(ucase(countries[n].code),824,y+21,106,42,25,"0x8C8C8CFF")
             words(countries[n].name,950,y+19,839,47,31)
             focusTarget("country",n,786,y-5,1048,89)
         end if
     end for
-    words((m.setupCountry+1).toStr()+" de "+countries.count().toStr(),800,936,1000,39,22,"0x9595A1FF")
-    words("↑ / ↓: elegir     OK: guardar y entrar     Atrás: volver",87,1004,1730,42,24,"0xB9B9C2FF")
+    words((m.setupCountry+1).toStr()+" de "+countries.count().toStr(),800,936,1000,39,22,"0x8C8C8CFF")
+    words("↑ / ↓: elegir     OK: guardar y entrar     Atrás: volver",87,1004,1730,42,24,"0xB3B3B3FF")
 end sub
 
 sub homeScreen()
@@ -243,28 +306,25 @@ sub homeScreen()
         item = m.features[0]
         heroUri = item.background
         if heroUri = "" then heroUri = item.poster
-        if heroUri <> "" then art(heroUri,294,24,1596,430)
-        art("pkg:/images/ui/hero-shade.png",294,24,1596,450)
-        glassSurface("hero-mask",294,24,1596,430)
-        words("DESTACADO",338,71,1470,38,21,"0xD9D9DCFF")
-        words(item.title,333,123,1000,137,54).wrap = true
+        if heroUri <> "" then art(heroUri,274,0,1646,650)
+        art("pkg:/images/ui/nf-hero-left.png",274,0,1150,650)
+        art("pkg:/images/ui/nf-hero-bottom.png",274,330,1646,330)
+        bold("DESTACADO",338,66,1470,38,22,nfRed())
+        bold(item.title,333,104,1000,160,62).wrap = true
         facts = item.year
         if m.catalogMode = "hd"
             if usesOnlineHd() then facts += " · "+hdProviderName(item.provider) else facts += " · Corto"
         end if
-        words(facts,340,277,1440,43,25,"0xB3B3B8FF")
-        selectable("hero",0,"Reproducir",337,335,317,70,true)
-        selectable("hero",1,"Ver detalles",674,335,275,70)
+        words(facts,340,272,1440,43,25,"0xD2D2D2FF")
+        selectable("hero",0,"Reproducir",337,335,300,70,true)
+        selectable("hero",1,"Más información",657,335,320,70)
     else
-        words("Tu próxima historia",335,142,1470,90,57)
+        bold("Tu próxima historia",335,142,1470,90,57)
         text = "Actualizando las películas y series populares…"
         if not m.homeLoading then text = "Abre Películas o Series para explorar el catálogo."
-        words(text,340,252,1470,80,29,"0xB3B3B8FF").wrap = true
+        words(text,340,252,1470,80,29,"0xB3B3B3FF").wrap = true
         selectable("hero",0,"Actualizar",337,335,317,70,true)
     end if
-    ' Both rows use the same card size (see drawRow()'s header comment for the
-    ' horizontal/vertical math) so row 0 and row 1 look consistent and both
-    ' fit below the hero on a 1080px-tall screen.
     rowY = 454
     cardH = 163
     for r = 0 to m.homeRows.count()-1
@@ -275,33 +335,19 @@ sub homeScreen()
         if r = 1 and m.catalogMode = "hd"
             if usesOnlineHd() then heading = "Series por descubrir" else heading = "Documentales en español"
         end if
-        words(heading,318,rowY,1500,47,34)
+        bold(heading,318,rowY,1500,47,32)
         drawRow(row,r,rowY+56,cardH)
         rowY += 56 + cardH + 54 + 24
     end for
     topBar()
 end sub
 
-' y: top of the card row. cardH: card height in px, same for every row so the
-' Home rows look consistent (both rows pass 163 — see homeScreen()).
-'
-' Horizontal: 5 visible cards (windowSize=5 in rpRowAdvance) must fit, with
-' their 1.08x focus-zoom bounding box, inside the 1920px canvas starting at
-' the existing x=318 left margin. With cardW=290, gap=30: slot 4 (the
-' rightmost visible card) sits at x = 318 + 4*(290+30) = 1598, right edge
-' 1598+290 = 1888. Zooming 1.08x around the card's own center adds
-' cardW*0.04 = 11.6px on each side, so the zoomed right edge lands at
-' 1888+11.6 = 1899.6, inside the 1920px canvas with margin to spare.
-'
-' Vertical (see homeScreen()): heading (47px) + 56px gap + cardH (163px) +
-' title (8px gap + 46px tall = 54px) + 24px gap before the next heading.
-' Row 0 starts at rowY=454 (hero's bottom edge): heading bottom 501, cards
-' 510..673, title 681..727, next rowY = 454+56+163+54+24 = 751.
-' Row 1 starts at rowY=751: heading bottom 798, cards 807..970, title
-' 978..1024. 1024 <= 1080, so both rows fully fit.
+' 5 visible 290x163 cards per row (see rpRowAdvance windowSize). The focused
+' card zooms 1.08x around its center with a white frame drawn inside the same
+' Group so frame and image scale together.
 sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
     if row.items.count() = 0
-        words("Cargando…",318,y,1500,40,25,"0xB3B3B8FF")
+        words("Cargando…",318,y,1500,40,25,"0xB3B3B3FF")
         return
     end if
     cardW = 290
@@ -319,7 +365,7 @@ sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
         bg = card.createChild("Rectangle")
         bg.width = cardW
         bg.height = cardH
-        bg.color = "0x18181BFF"
+        bg.color = "0x2F2F2FFF"
         uri = item.background
         if uri = "" then uri = item.poster
         if uri <> ""
@@ -332,18 +378,14 @@ sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
             poster.uri = uri
             m.images.push(poster)
         end if
-        mask = card.createChild("Poster")
-        mask.width = cardW
-        mask.height = cardH
-        mask.uri = "pkg:/images/ui/card-landscape-mask.png"
-        m.images.push(mask)
-        words(item.title,x+4,y+cardH+8,cardW-8,46,24).wrap = true
-        focusTarget("home-row-"+rowIndex.toStr(),n,x-6,y-6,cardW+12,cardH+12,"landscape",card)
+        edge = outline(card,-5,-5,cardW+10,cardH+10,4,"0xFFFFFFFF")
+        edge.visible = false
+        m.focusItems.push({zone:"home-row-"+rowIndex.toStr(),index:n,edge:edge,scaleNode:card})
+        words(item.title,x+2,y+cardH+12,cardW-4,40,22,"0xE5E5E5FF")
     end for
 end sub
 
 sub browseScreen()
-    topBar()
     title = "Películas populares"
     if m.kind = "series" then title = "Series populares"
     if m.catalogMode = "hd"
@@ -356,11 +398,11 @@ sub browseScreen()
         end if
     end if
     if m.query <> "" then title = "Resultados: " + m.query
-    words(title,317,86,1510,113,46).wrap = true
+    bold(title,317,86,1510,113,48).wrap = true
     hint = "Sigue bajando para explorar más títulos."
     if usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
-    words(hint,322,211,1185,50,24,"0xA9C0D4FF").wrap = true
-    words("Buscar con *",1530,213,307,38,22,"0xBDCFDFFF").horizAlign = "right"
+    words(hint,322,206,1185,50,24,"0x8C8C8CFF").wrap = true
+    words("Buscar con *",1530,208,307,38,22,"0x8C8C8CFF").horizAlign = "right"
     first = (m.cursor \ 6)*6
     for i = 0 to 5
         n = first+i
@@ -368,15 +410,14 @@ sub browseScreen()
             item = m.titles[n]
             x = 318+(i mod 3)*516
             y = 277+(i \ 3)*365
-            glassSurface("glass-tile",x,y,488,338)
             uri = item.background
             if uri = "" then uri = item.poster
-            thumbnail(uri,x+4,y+6,480,221)
-            words(item.title,x+17,y+239,454,57,25).wrap = true
+            thumbnail(uri,x,y,488,275)
+            bold(item.title,x+2,y+287,484,38,25)
             facts = item.year
             if usesOnlineHd() then facts = hdProviderName(item.provider)+" · "+facts
-            words(facts,x+17,y+302,454,30,21,"0xACC3D8FF")
-            focusTarget("grid",n,x-6,y-6,500,350,"catalog")
+            words(facts,x+2,y+325,484,30,21,"0x8C8C8CFF")
+            focusTarget("grid",n,x-6,y-6,500,287,"catalog")
         end if
     end for
     last = first+6
@@ -384,66 +425,88 @@ sub browseScreen()
     if last > 0
         caption = "Títulos "+(m.offset+first+1).toStr()+"–"+(m.offset+last).toStr()
         if usesOnlineHd() and (m.hdProvider = "all" or m.hdProvider = "seriesmetro" or m.hdProvider = "cinecalidad") then caption = "Opciones "+(first+1).toStr()+"–"+last.toStr()+" · Página "+((m.offset\20)+1).toStr()
-        words(caption,321,1014,1000,38,22,"0xA0B7CDFF")
+        words(caption,321,1014,1000,38,22,"0x8C8C8CFF")
     end if
     if m.titles.count() = 0 and not m.busy
         empty = "No se encontraron títulos."
         if m.more then empty = "Sin opciones en esta página. Pulsa ↓ para consultar la siguiente."
-        words(empty,341,410,1410,104,32,"0xB6CBDDFF").wrap = true
+        words(empty,341,410,1410,104,32,"0xB3B3B3FF").wrap = true
     end if
     hint = "↓ Más títulos"
     if first+6 >= m.titles.count() and not m.more then hint = "Fin del catálogo"
-    words(hint,1330,1014,500,38,22,"0xC0D3E3FF").horizAlign = "right"
+    words(hint,1330,1014,500,38,22,"0xB3B3B3FF").horizAlign = "right"
+    topBar()
 end sub
 
+function nfText(item as object, field as string) as string
+    if item.doesExist(field)
+        if GetInterface(item[field],"ifString") <> invalid then return item[field]
+    end if
+    return ""
+end function
+
 sub detailScreen()
-    topBar()
-    if m.detail = invalid then return
+    if m.detail = invalid
+        topBar()
+        return
+    end if
     item = m.detail
-    thumbnail(item.poster,325,157,350,535,"poster")
-    glassSurface("glass-section",713,98,1140,870)
+    backdrop = nfText(item,"background")
+    if backdrop <> ""
+        art(backdrop,274,0,1646,1080)
+    else if nfText(item,"poster") <> ""
+        thumbnail(item.poster,1420,150,400,612,"poster")
+    end if
+    art("pkg:/images/ui/nf-detail-left.png",274,0,1400,1080)
+    art("pkg:/images/ui/nf-detail-bottom.png",274,840,1646,240)
     heading = "PELÍCULA"
     if item.kind = "series" then heading = "SERIE"
     if m.catalogMode = "hd" then heading = "BIBLIOTECA HD"
     if usesOnlineHd() then heading = "BIBLIOTECA HD · "+hdProviderName(item.provider)
     if item.kind = "episode" then heading = m.series.title+" · Episodio "+item.episode.toStr()
-    words(heading,751,132,1060,50,21,"0xA9C5DDFF")
-    words(item.title,747,203,1060,145,47).wrap = true
+    bold(ucase(heading),336,120,1000,40,22,nfRed())
+    bold(item.title,330,166,1000,200,62).wrap = true
     facts = item.year
     if item.runtime > 0 then facts = timeText(item.runtime)+" · "+facts
-    words(facts,752,369,1045,44,25,"0xAEC8DDFF")
+    words(facts,336,380,900,44,26,"0xBCBCBCFF")
     summary = item.description
     if summary = "" then summary = "Consulta la disponibilidad de este título."
-    words(left(summary,700),752,439,1045,215,27,"0xD8E6F1FF").wrap = true
+    words(left(summary,600),336,440,900,230,27,"0xE5E5E5FF").wrap = true
     title = "Reproducir"
     if item.kind = "series" then title = "Ver episodios"
-    selectable("action",0,title,747,699,1060,70,true)
-    selectable("action",1,"Volver",747,792,1060,67)
-    if item.doesExist("source") then words("Fuente: "+item.source,331,730,340,140,21,"0x9DB8CEFF").wrap = true
+    selectable("action",0,title,333,699,440,70,true)
+    selectable("action",1,"Volver",333,792,440,67)
+    if item.doesExist("source") then words("Fuente: "+item.source,336,885,900,60,21,"0x808080FF").wrap = true
+    topBar()
 end sub
 
 sub episodeScreen()
     topBar()
     if m.series = invalid or m.series.seasons.count() = 0 then return
     season = m.series.seasons[m.season]
-    words(m.series.title,317,102,1520,93,46).wrap = true
-    words("← Temporada "+season.number.toStr()+" →",322,215,1500,49,28,"0xB3B3BFFF")
+    bold(m.series.title,317,90,1520,93,52).wrap = true
+    panel(322,205,440,56,"0x2F2F2FFF")
+    seasonLabel = bold("←   Temporada "+season.number.toStr()+"   →",322,205,440,56,26)
+    seasonLabel.horizAlign = "center"
+    seasonLabel.vertAlign = "center"
     first = (m.episode \ 6)*6
     for i = 0 to 5
         n = first+i
         if n < season.episodes.count()
             item = season.episodes[n]
             y = 303+i*96
-            glassSurface("glass-row",319,y,1526,80)
-            words(item.episode.toStr(),345,y+22,77,44,27,"0xAFC8DDFF")
+            ink = "0x1F1F1FFF"
+            if n = m.episode then ink = "0x333333FF"
+            panel(319,y,1526,80,ink)
+            bold(item.episode.toStr(),345,y+16,77,50,36,"0x8C8C8CFF")
             words(item.title,444,y+14,1360,62,28).wrap = true
             focusTarget("episodes",n,313,y-5,1538,90,"live")
         end if
     end for
     if season.episodes.count() > 0
-        words("Episodio "+(m.episode+1).toStr()+" de "+season.episodes.count().toStr(),324,922,1480,45,23,"0x9696A4FF")
+        words("Episodio "+(m.episode+1).toStr()+" de "+season.episodes.count().toStr(),324,922,1480,45,23,"0x8C8C8CFF")
     else if not m.busy
-        words("No hay episodios cargados. OK para volver a consultar.",324,386,1480,85,29,"0x9696A4FF").wrap = true
+        words("No hay episodios cargados. OK para volver a consultar.",324,386,1480,85,29,"0x8C8C8CFF").wrap = true
     end if
 end sub
 
@@ -629,20 +692,18 @@ end sub
 
 sub settingsScreen()
     topBar()
-    words("Configuración",317,102,1500,87,53)
-    words("Puedes corregir tus elecciones cuando quieras.",322,218,1480,65,28,"0xADADB9FF")
-    appearance = "Vidrio"
-    if m.theme = "classic" then appearance = "Clásico"
-    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales","Apariencia"]
-    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias",appearance]
-    for i = 0 to 4
+    bold("Configuración",317,102,1500,87,53)
+    words("Puedes corregir tus elecciones cuando quieras.",322,210,1480,65,28,"0x8C8C8CFF")
+    labels = ["Tu televisor","País o región","Catálogo HD","Créditos de cortos y documentales"]
+    values = [modeName(),countryName(),hdProviderName(),"Ver fuentes y licencias"]
+    for i = 0 to 3
         y = 299+i*122
-        art("pkg:/images/ui/pill.png",321,y,1518,106)
-        words(labels[i],352,y+15,1150,43,31)
-        words(values[i],354,y+65,1250,33,23,"0xB7C7BEFF")
+        panel(321,y,1518,106,"0x232323FF")
+        bold(labels[i],352,y+15,1150,43,30)
+        words(values[i],354,y+65,1250,33,23,"0x8C8C8CFF")
         focusTarget("settings",i,315,y-5,1530,116)
     end for
-    words("Las preferencias se guardan en esta Roku.",323,959,1480,60,23,"0xB1BEB3FF")
+    words("Las preferencias se guardan en esta Roku.",323,959,1480,60,23,"0x808080FF")
 end sub
 
 sub appearanceScreen()
