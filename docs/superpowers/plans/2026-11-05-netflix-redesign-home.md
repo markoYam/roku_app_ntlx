@@ -154,7 +154,6 @@ cd /Users/marcoyamcetina/Downloads/Roku-Plus-1
 git add source/HomeRows.brs components/PlusScene.xml
 git commit -m "feat: add pure row-scroll arithmetic for Home redesign
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 (Si la carpeta todavía no es un repositorio git, pide confirmación al
@@ -253,7 +252,6 @@ Expected: cero diferencias visuales en Browse/Detalle/Live respecto al
 git add components/PlusSceneViews.brs
 git commit -m "feat: add optional focus-scale support to focusTarget/paintFocus
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -456,7 +454,6 @@ Expected: navegación fluida, sin saltos ni "undefined index" en el log de
 git add components/PlusScene.brs
 git commit -m "feat: replace fixed home cover/seriesCover state with scrollable row model
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
@@ -592,7 +589,6 @@ funcionando.
 git add components/PlusSceneViews.brs
 git commit -m "feat: render Home as horizontally-scrolling rows with focus zoom
 
-Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
