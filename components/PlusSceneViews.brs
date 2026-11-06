@@ -85,7 +85,7 @@ sub eraseScreen()
     art("pkg:/images/ui/app-background.png",0,0,1920,1080)
 end sub
 
-sub focusTarget(zone as string, index as integer, x as integer, y as integer, w as integer, h as integer, shape = "wide" as string)
+sub focusTarget(zone as string, index as integer, x as integer, y as integer, w as integer, h as integer, shape = "wide" as string, scaleNode = invalid as dynamic)
     uri = "pkg:/images/ui/focus-button.png"
     if shape = "card" then uri = "pkg:/images/ui/focus-card.png"
     if shape = "landscape" then uri = "pkg:/images/ui/focus-landscape.png"
@@ -99,7 +99,7 @@ sub focusTarget(zone as string, index as integer, x as integer, y as integer, w 
     if shape = "wide" and w > 1000 then uri = "pkg:/images/ui/focus-row.png"
     edge = art(uri,x,y,w,h)
     edge.visible = false
-    m.focusItems.push({zone:zone,index:index,edge:edge})
+    m.focusItems.push({zone:zone,index:index,edge:edge,scaleNode:scaleNode})
 end sub
 
 sub selectable(zone as string, index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean)
@@ -246,69 +246,100 @@ sub homeScreen()
         if heroUri <> "" then art(heroUri,294,24,1596,430)
         art("pkg:/images/ui/hero-shade.png",294,24,1596,450)
         glassSurface("hero-mask",294,24,1596,430)
-        words("DESTACADO",338,71,1470,38,21,"0xC8DCECFF")
+        words("DESTACADO",338,71,1470,38,21,"0xD9D9DCFF")
         words(item.title,333,123,1000,137,54).wrap = true
         facts = item.year
         if m.catalogMode = "hd"
             if usesOnlineHd() then facts += " · "+hdProviderName(item.provider) else facts += " · Corto"
         end if
-        words(facts,340,277,1440,43,25,"0xB8CEE1FF")
+        words(facts,340,277,1440,43,25,"0xB3B3B8FF")
         selectable("hero",0,"Reproducir",337,335,317,70,true)
         selectable("hero",1,"Ver detalles",674,335,275,70)
     else
         words("Tu próxima historia",335,142,1470,90,57)
         text = "Actualizando las películas y series populares…"
         if not m.homeLoading then text = "Abre Películas o Series para explorar el catálogo."
-        words(text,340,252,1470,80,29,"0xB8CEE1FF").wrap = true
+        words(text,340,252,1470,80,29,"0xB3B3B8FF").wrap = true
         selectable("hero",0,"Actualizar",337,335,317,70,true)
     end if
-    heading = "Top 3 películas"
-    if m.catalogMode = "hd"
-        heading = "Cortos en HD"
-        if usesOnlineHd()
-            heading = "Películas para explorar"
+    ' Both rows use the same card size (see drawRow()'s header comment for the
+    ' horizontal/vertical math) so row 0 and row 1 look consistent and both
+    ' fit below the hero on a 1080px-tall screen.
+    rowY = 454
+    cardH = 163
+    for r = 0 to m.homeRows.count()-1
+        row = m.homeRows[r]
+        heading = row.heading
+        if r = 0 and m.catalogMode = "hd" then heading = "Cortos en HD"
+        if r = 0 and m.catalogMode = "hd" and usesOnlineHd() then heading = "Películas para explorar"
+        if r = 1 and m.catalogMode = "hd"
+            if usesOnlineHd() then heading = "Series por descubrir" else heading = "Documentales en español"
         end if
-    end if
-    words(heading,318,447,1500,50,34)
-    if usesOnlineHd() then words("Explora todos en Películas y Series",1190,458,647,36,21,"0xA9BED2FF").horizAlign = "right"
-    for i = 0 to 2
-        if i < m.features.count()
-            item = m.features[i]
-            if m.catalogMode = "hevc"
-                x = 323+i*515
-                art("pkg:/images/ui/rank-"+(i+1).toStr()+".png",x,518,145,259)
-                thumbnail(item.poster,x+140,505,220,276,"poster")
-                focusTarget("covers",i,x+134,499,232,288,"card")
-                words(item.title,x+140,794,343,53,23,"0xCADBE9FF").wrap = true
-            else
-                x = 318+i*522
-                uri = item.poster
-                if usesOnlineHd() and item.background <> "" then uri = item.background
-                thumbnail(uri,x,510,480,251)
-                focusTarget("covers",i,x-6,504,492,263,"landscape")
-                words(item.title,x+4,780,472,64,25).wrap = true
-            end if
-        end if
-    end for
-    heading = "Series populares"
-    if m.catalogMode = "hd"
-        if usesOnlineHd() then heading = "Series por descubrir" else heading = "Documentales en español"
-    end if
-    words(heading,318,856,1500,47,34)
-    for i = 0 to 2
-        if i < m.homeSeries.count()
-            item = m.homeSeries[i]
-            uri = item.background
-            if uri = "" then uri = item.poster
-            x = 318+i*522
-            thumbnail(uri,x,918,480,138)
-            panel(x+1,1012,478,43,"0x0C1B2AE8")
-            glassSurface("card-landscape-mask",x,918,480,138)
-            words(item.title,x+16,1018,448,34,23)
-            focusTarget("home-series",i,x-6,912,492,150,"landscape")
-        end if
+        words(heading,318,rowY,1500,47,34)
+        drawRow(row,r,rowY+56,cardH)
+        rowY += 56 + cardH + 54 + 24
     end for
     topBar()
+end sub
+
+' y: top of the card row. cardH: card height in px, same for every row so the
+' Home rows look consistent (both rows pass 163 — see homeScreen()).
+'
+' Horizontal: 5 visible cards (windowSize=5 in rpRowAdvance) must fit, with
+' their 1.08x focus-zoom bounding box, inside the 1920px canvas starting at
+' the existing x=318 left margin. With cardW=290, gap=30: slot 4 (the
+' rightmost visible card) sits at x = 318 + 4*(290+30) = 1598, right edge
+' 1598+290 = 1888. Zooming 1.08x around the card's own center adds
+' cardW*0.04 = 11.6px on each side, so the zoomed right edge lands at
+' 1888+11.6 = 1899.6, inside the 1920px canvas with margin to spare.
+'
+' Vertical (see homeScreen()): heading (47px) + 56px gap + cardH (163px) +
+' title (8px gap + 46px tall = 54px) + 24px gap before the next heading.
+' Row 0 starts at rowY=454 (hero's bottom edge): heading bottom 501, cards
+' 510..673, title 681..727, next rowY = 454+56+163+54+24 = 751.
+' Row 1 starts at rowY=751: heading bottom 798, cards 807..970, title
+' 978..1024. 1024 <= 1080, so both rows fully fit.
+sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
+    if row.items.count() = 0
+        words("Cargando…",318,y,1500,40,25,"0xB3B3B8FF")
+        return
+    end if
+    cardW = 290
+    gap = 30
+    windowSize = 5
+    last = row.offset + windowSize - 1
+    if last > row.items.count()-1 then last = row.items.count()-1
+    for n = row.offset to last
+        item = row.items[n]
+        slot = n - row.offset
+        x = 318 + slot*(cardW+gap)
+        card = m.canvas.createChild("Group")
+        card.translation = [x,y]
+        card.scaleRotateCenter = [cardW/2,cardH/2]
+        bg = card.createChild("Rectangle")
+        bg.width = cardW
+        bg.height = cardH
+        bg.color = "0x18181BFF"
+        uri = item.background
+        if uri = "" then uri = item.poster
+        if uri <> ""
+            poster = card.createChild("Poster")
+            poster.width = cardW
+            poster.height = cardH
+            poster.loadWidth = cardW
+            poster.loadHeight = cardH
+            poster.loadDisplayMode = "scaleToFill"
+            poster.uri = uri
+            m.images.push(poster)
+        end if
+        mask = card.createChild("Poster")
+        mask.width = cardW
+        mask.height = cardH
+        mask.uri = "pkg:/images/ui/card-landscape-mask.png"
+        m.images.push(mask)
+        words(item.title,x+4,y+cardH+8,cardW-8,46,24).wrap = true
+        focusTarget("home-row-"+rowIndex.toStr(),n,x-6,y-6,cardW+12,cardH+12,"landscape",card)
+    end for
 end sub
 
 sub browseScreen()
@@ -675,8 +706,7 @@ sub paintFocus()
         chosen = false
         if entry.zone = m.zone
             if m.zone = "hero" then chosen = entry.index = m.hero
-            if m.zone = "covers" then chosen = entry.index = m.cover
-            if m.zone = "home-series" then chosen = entry.index = m.seriesCover
+            if left(m.zone,9) = "home-row-" then chosen = entry.index = m.homeRows[val(mid(m.zone,10),10)].cursor
             if m.zone = "grid" then chosen = entry.index = m.cursor
             if m.zone = "action" then chosen = entry.index = m.action
             if m.zone = "episodes" then chosen = entry.index = m.episode
@@ -691,5 +721,8 @@ sub paintFocus()
             if m.zone = "country" then chosen = entry.index = m.setupCountry
         end if
         entry.edge.visible = chosen
+        if entry.scaleNode <> invalid
+            if chosen then entry.scaleNode.scale = [1.08,1.08] else entry.scaleNode.scale = [1.0,1.0]
+        end if
     end for
 end sub
