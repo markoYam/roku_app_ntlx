@@ -31,8 +31,8 @@
       <Poster id="capsule" width="1728" height="170" uri="pkg:/images/newplayer-capsule.png" loadDisplayMode="scaleToFit" />
       <Label id="clockText" translation="[54,17]" width="166" height="42" font="font:SmallSystemFont" color="0xF6FAFDFF" />
       <Label id="durationText" translation="[1512,17]" width="160" height="42" font="font:SmallSystemFont" color="0xE8EEF6FF" horizAlign="right" />
-      <Rectangle id="timeTrack" translation="[228,35]" width="1260" height="4" color="0xE8F0FF66" visible="false" />
-      <Rectangle id="timeFill" translation="[228,35]" width="0" height="4" color="0xF6FAFDFF" visible="false" />
+      <Rectangle id="timeTrack" translation="[228,35]" width="1260" height="4" color="0xFFFFFF4D" visible="false" />
+      <Rectangle id="timeFill" translation="[228,35]" width="0" height="4" color="0xE50914FF" visible="false" />
       <Poster id="timeThumb" translation="[219,28]" width="18" height="18" uri="pkg:/images/newplayer-thumb.png" visible="false" />
       <Group id="rewindControl" translation="[702,67]">
         <Poster id="rewindSurface" width="80" height="80" uri="pkg:/images/newplayer-control.png" />
