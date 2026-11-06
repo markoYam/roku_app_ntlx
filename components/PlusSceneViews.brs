@@ -200,6 +200,8 @@ sub topBar()
         if m.kind = "series" then active = 2
     else if m.view = "live"
         active = 3
+    else if m.view = "search"
+        active = 4
     else if m.view = "settings" or m.view = "credits" or m.view = "hd-source" or m.view = "appearance"
         active = 5
     end if
@@ -238,7 +240,8 @@ sub drawScreen()
         if m.view = "appearance" then appearanceScreen()
         if m.view = "credits" then creditsScreen()
         if m.view = "hd-source" then hdSourceScreen()
-        if m.busy or m.note <> ""
+        if m.view = "search" then searchScreen()
+        if (m.busy or m.note <> "") and m.view <> "search"
             glassSurface("glass-notice",295,970,1596,100)
             text = m.note
             if m.busy then text = "Consultando el catálogo…"
@@ -339,6 +342,7 @@ sub homeScreen()
         drawRow(row,r,rowY+56,cardH)
         rowY += 56 + cardH + 54 + 24
     end for
+    searchPill(1660,40)
     topBar()
 end sub
 
@@ -398,11 +402,11 @@ sub browseScreen()
         end if
     end if
     if m.query <> "" then title = "Resultados: " + m.query
-    bold(title,317,86,1510,113,48).wrap = true
+    bold(title,317,86,1250,113,48).wrap = true
     hint = "Sigue bajando para explorar más títulos."
     if usesOnlineHd() and m.hdProvider = "all" then hint = "Opciones de varias fuentes. Si una falla, prueba la misma película en otra."
     words(hint,322,206,1185,50,24,"0x8C8C8CFF").wrap = true
-    words("Buscar con *",1530,208,307,38,22,"0x8C8C8CFF").horizAlign = "right"
+    searchPill(1620,96)
     first = (m.cursor \ 6)*6
     for i = 0 to 5
         n = first+i
@@ -780,6 +784,10 @@ sub paintFocus()
             if m.zone = "hd-source" then chosen = entry.index = m.hdSourceCursor
             if m.zone = "setup" then chosen = entry.index = m.setupTv
             if m.zone = "country" then chosen = entry.index = m.setupCountry
+            if m.zone = "search-btn" then chosen = true
+            if m.zone = "kbd" then chosen = entry.index = m.kbd
+            if m.zone = "search-results" then chosen = entry.index = m.cursor
+            if m.zone = "search-kind" then chosen = entry.index = m.searchKindCursor
         end if
         entry.edge.visible = chosen
         if entry.scaleNode <> invalid
@@ -787,3 +795,80 @@ sub paintFocus()
         end if
     end for
 end sub
+
+' "Buscar" pill used on Home, Películas and Series (zone "search-btn").
+sub searchPill(x as integer, y as integer)
+    selectable("search-btn",0,"      Buscar",x,y,220,60)
+    art("pkg:/images/ui/search.png",x+34,y+15,30,30)
+    entry = m.focusItems[m.focusItems.count()-1]
+    icon = entry.edge.createChild("Poster")
+    icon.translation = [34,15]
+    icon.width = 30
+    icon.height = 30
+    icon.blendColor = "0x000000FF"
+    icon.uri = "pkg:/images/ui/search.png"
+    m.images.push(icon)
+end sub
+
+sub searchScreen()
+    x0 = 318
+    query = m.searchText
+    art("pkg:/images/ui/search.png",x0+8,104,36,36)
+    if query = ""
+        words("Buscar títulos…",x0+60,100,456,44,30,"0x808080FF")
+    else
+        bold(query,x0+60,100,456,44,30)
+    end if
+    panel(x0,160,515,3,"0xFFFFFFFF")
+    keys = rpKbdKeys()
+    selectable("kbd",0,"Espacio",x0,196,254,64)
+    selectable("kbd",1,"Borrar",x0+261,196,254,64)
+    for k = 2 to 37
+        row = (k-2)\6 + 1
+        col = (k-2) mod 6
+        selectable("kbd",k,ucase(keys[k]),x0+col*87,196+row*71,80,64)
+    end for
+    words("OK  Escribir     Atrás  Salir",x0,722,515,34,20,"0x8C8C8CFF")
+
+    rx = 880
+    selectable("search-kind",0,"Películas",rx,96,220,60,m.searchKind = "movie")
+    selectable("search-kind",1,"Series",rx+236,96,200,60,m.searchKind = "series")
+    heading = "Populares"
+    if m.kind = "series" then heading = "Series populares" else heading = "Películas populares"
+    if query.trim() <> "" then heading = "Resultados para «"+query.trim()+"»"
+    bold(heading,rx,180,820,44,30)
+    status = ""
+    if m.busy then status = "Buscando…"
+    if not m.busy and m.note <> "" then status = m.note
+    if status <> "" then words(status,1500,186,380,38,22,"0x8C8C8CFF").horizAlign = "right"
+
+    n = m.titles.count()
+    first = (m.cursor \ 9)*9
+    for i = 0 to 8
+        idx = first+i
+        if idx < n
+            item = m.titles[idx]
+            x = rx+(i mod 3)*344
+            y = 244+(i \ 3)*232
+            uri = item.background
+            if uri = "" then uri = item.poster
+            thumbnail(uri,x,y,320,180)
+            words(item.title,x+2,y+190,316,34,22,"0xE5E5E5FF")
+            focusTarget("search-results",idx,x-6,y-6,332,192)
+        end if
+    end for
+    if n = 0 and not m.busy
+        empty = "Escribe con el teclado para buscar."
+        if query.trim() <> "" then empty = "No encontramos resultados para «"+query.trim()+"». Prueba con otro título o cambia a "+iif(m.searchKind = "series","Películas","Series")+"."
+        words(empty,rx,260,1000,110,28,"0xB3B3B3FF").wrap = true
+    end if
+    lastShown = first+9
+    if lastShown > n then lastShown = n
+    if n > 9 then words("Resultados "+(first+1).toStr()+"–"+lastShown.toStr()+" de "+n.toStr(),rx,960,1000,34,21,"0x8C8C8CFF")
+    topBar()
+end sub
+
+function iif(condition as boolean, a as dynamic, b as dynamic) as dynamic
+    if condition then return a
+    return b
+end function

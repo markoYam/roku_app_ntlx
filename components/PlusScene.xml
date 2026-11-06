@@ -10,6 +10,7 @@
   <script type="text/brightscript" uri="pkg:/source/HdData.brs" />
   <script type="text/brightscript" uri="pkg:/source/HomeRows.brs" />
   <script type="text/brightscript" uri="PlusSceneViews.brs" />
+  <script type="text/brightscript" uri="PlusSearch.brs" />
   <script type="text/brightscript" uri="PlusScene.brs" />
   <children>
     <Rectangle width="1920" height="1080" color="0x09090BFF" />
@@ -18,6 +19,7 @@
     <Timer id="catalogDeadline" duration="25" repeat="false" />
     <Timer id="livePreviewDelay" duration="0.7" repeat="false" />
     <Timer id="liveNoticeTimer" duration="3.5" repeat="false" />
+    <Timer id="searchDelay" duration="0.6" repeat="false" />
   </children>
 </component>
 
