@@ -20,8 +20,8 @@ sub init()
     m.zone = "hero"
     m.nav = 0
     m.hero = 0
-    m.cover = 0
-    m.seriesCover = 0
+    m.homeRows = rpHomeRowsBuild([], [])
+    m.rowFocus = 0
     m.images = []
     m.focusItems = []
     m.kind = "movie"
@@ -762,11 +762,11 @@ sub commitSetup()
     m.titles = []
     m.query = ""
     m.kind = "movie"
-    m.cover = 0
-    m.seriesCover = 0
     m.hero = 0
     m.features = []
     m.homeSeries = []
+    m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
+    m.rowFocus = 0
     m.view = "home"
     m.zone = "hero"
     m.nav = 0
@@ -851,6 +851,7 @@ sub homeFetched(event as object)
             if m.catalogMode = "hd" and entry.provider <> m.hdProvider then return
             if answer.ok
                 if entry.kind = "movie" then m.features = answer.items else m.homeSeries = answer.items
+                m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
             else
                 m.note = "No se pudo actualizar una de las filas. Puedes explorar desde el menú o volver a intentar."
             end if
@@ -986,14 +987,14 @@ sub commitHdSource()
     m.query = ""
     m.offset = 0
     m.cursor = 0
-    m.cover = 0
-    m.seriesCover = 0
     m.kind = "movie"
     m.detail = invalid
     m.series = invalid
     if m.catalogMode = "hd"
         m.features = []
         m.homeSeries = []
+        m.homeRows = rpHomeRowsBuild(m.features, m.homeSeries)
+        m.rowFocus = 0
         m.nav = 0
         m.view = "home"
         m.zone = "hero"
@@ -1125,26 +1126,30 @@ function onKeyEvent(key as string, press as boolean) as boolean
             end if
             if key = "right" and m.features.count() > 0 then m.hero = 1
             if key = "up" then m.zone = "nav": drawScreen(): return true
-            if key = "down" then m.zone = "covers"
+            if key = "down" and m.homeRows.count() > 0 then m.zone = "home-row-0"
             if key = "OK"
                 if m.features.count() > 0 then openDetails(m.features[0],"home",m.hero=0) else refreshHome(): drawScreen()
                 return true
             end if
-        else if m.zone = "covers"
+        else if left(m.zone,9) = "home-row-"
+            rowIndex = val(mid(m.zone,10))
+            row = m.homeRows[rowIndex]
             if key = "left"
-                if m.cover > 0 then m.cover-- else m.zone = "nav": drawScreen(): return true
+                next = rpRowAdvance(row,row.items,-1,5)
+                if next.cursor = row.cursor then m.zone = "nav": drawScreen(): return true
+                row.cursor = next.cursor
+                row.offset = next.offset
             end if
-            if key = "right" and m.cover < 2 and m.cover+1 < m.features.count() then m.cover++
-            if key = "up" then m.zone = "hero"
-            if key = "down" and m.homeSeries.count() > 0 then m.zone = "home-series"
-            if key = "OK" and m.features.count() > 0 then openDetails(m.features[m.cover],"home"): return true
-        else if m.zone = "home-series"
-            if key = "left"
-                if m.seriesCover > 0 then m.seriesCover-- else m.zone = "nav": drawScreen(): return true
+            if key = "right"
+                next = rpRowAdvance(row,row.items,1,5)
+                row.cursor = next.cursor
+                row.offset = next.offset
             end if
-            if key = "right" and m.seriesCover < 2 and m.seriesCover+1 < m.homeSeries.count() then m.seriesCover++
-            if key = "up" then m.zone = "covers"
-            if key = "OK" and m.homeSeries.count() > 0 then openDetails(m.homeSeries[m.seriesCover],"home"): return true
+            if key = "up"
+                if rowIndex = 0 then m.zone = "hero" else m.zone = "home-row-"+(rowIndex-1).toStr()
+            end if
+            if key = "down" and rowIndex < m.homeRows.count()-1 then m.zone = "home-row-"+(rowIndex+1).toStr()
+            if key = "OK" and row.items.count() > 0 then openDetails(row.items[row.cursor],"home"): return true
         end if
     else if m.view = "browse"
         block = m.cursor \ 6
