@@ -174,8 +174,9 @@ sub selectable(zone as string, index as integer, text as string, x as integer, y
 end sub
 
 sub brand(x as integer, y as integer)
-    bold("ROKU",x,y,200,46,40,nfRed())
-    bold("PLUS",x+2,y+44,200,32,24,"0xFFFFFFFF")
+    art("pkg:/images/ui/brand-mark.png",x,y,64,64)
+    bold("ROKU",x+76,y,160,38,31)
+    bold("PLUS",x+77,y+34,160,30,23,nfRed())
 end sub
 
 function countryName() as string
