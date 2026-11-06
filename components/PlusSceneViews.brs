@@ -262,7 +262,11 @@ sub homeScreen()
         words(text,340,252,1470,80,29,"0xB3B3B8FF").wrap = true
         selectable("hero",0,"Actualizar",337,335,317,70,true)
     end if
-    rowY = 490
+    ' Only the first row gets the full-size card (parity with the pre-redesign
+    ' "Top 3 películas" row); later rows use a shorter card so two full rows
+    ' (heading + cards + title, nothing clipped) fit below the hero on a
+    ' 1080px-tall screen — see drawRow()'s header comment for the math.
+    rowY = 454
     for r = 0 to m.homeRows.count()-1
         row = m.homeRows[r]
         heading = row.heading
@@ -272,15 +276,19 @@ sub homeScreen()
             if usesOnlineHd() then heading = "Series por descubrir" else heading = "Documentales en español"
         end if
         words(heading,318,rowY,1500,47,34)
-        drawRow(row,r,rowY+56)
-        rowY += 390
+        cardH = 251
+        if r > 0 then cardH = 120
+        drawRow(row,r,rowY+56,cardH)
+        rowY += 56 + cardH + 54 + 24
     end for
     topBar()
 end sub
 
-sub drawRow(row as object, rowIndex as integer, y as float)
+' y: top of the card row. cardH: card height in px — the caller sizes this per
+' row so stacked rows fit on screen (homeScreen() uses 251 for row 0 and 120
+' for later rows; see the trace in task-4-report.md).
+sub drawRow(row as object, rowIndex as integer, y as float, cardH as integer)
     cardW = 480
-    cardH = 251
     gap = 36
     windowSize = 5
     last = row.offset + windowSize - 1
@@ -682,8 +690,6 @@ sub paintFocus()
         chosen = false
         if entry.zone = m.zone
             if m.zone = "hero" then chosen = entry.index = m.hero
-            if m.zone = "covers" then chosen = entry.index = m.cover
-            if m.zone = "home-series" then chosen = entry.index = m.seriesCover
             if left(m.zone,9) = "home-row-" then chosen = entry.index = m.homeRows[val(mid(m.zone,10))].cursor
             if m.zone = "grid" then chosen = entry.index = m.cursor
             if m.zone = "action" then chosen = entry.index = m.action

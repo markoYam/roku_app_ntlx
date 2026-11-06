@@ -1137,13 +1137,17 @@ function onKeyEvent(key as string, press as boolean) as boolean
             if key = "left"
                 next = rpRowAdvance(row,row.items,-1,5)
                 if next.cursor = row.cursor then m.zone = "nav": drawScreen(): return true
+                offsetChanged = next.offset <> row.offset
                 row.cursor = next.cursor
                 row.offset = next.offset
+                if offsetChanged then drawScreen(): return true
             end if
             if key = "right"
                 next = rpRowAdvance(row,row.items,1,5)
+                offsetChanged = next.offset <> row.offset
                 row.cursor = next.cursor
                 row.offset = next.offset
+                if offsetChanged then drawScreen(): return true
             end if
             if key = "up"
                 if rowIndex = 0 then m.zone = "hero" else m.zone = "home-row-"+(rowIndex-1).toStr()
