@@ -85,7 +85,7 @@ sub eraseScreen()
     art("pkg:/images/ui/app-background.png",0,0,1920,1080)
 end sub
 
-sub focusTarget(zone as string, index as integer, x as integer, y as integer, w as integer, h as integer, shape = "wide" as string)
+sub focusTarget(zone as string, index as integer, x as integer, y as integer, w as integer, h as integer, shape = "wide" as string, scaleNode = invalid as dynamic)
     uri = "pkg:/images/ui/focus-button.png"
     if shape = "card" then uri = "pkg:/images/ui/focus-card.png"
     if shape = "landscape" then uri = "pkg:/images/ui/focus-landscape.png"
@@ -99,7 +99,7 @@ sub focusTarget(zone as string, index as integer, x as integer, y as integer, w 
     if shape = "wide" and w > 1000 then uri = "pkg:/images/ui/focus-row.png"
     edge = art(uri,x,y,w,h)
     edge.visible = false
-    m.focusItems.push({zone:zone,index:index,edge:edge})
+    m.focusItems.push({zone:zone,index:index,edge:edge,scaleNode:scaleNode})
 end sub
 
 sub selectable(zone as string, index as integer, text as string, x as integer, y as integer, w as integer, h as integer, primary = false as boolean)
@@ -691,5 +691,8 @@ sub paintFocus()
             if m.zone = "country" then chosen = entry.index = m.setupCountry
         end if
         entry.edge.visible = chosen
+        if entry.scaleNode <> invalid
+            if chosen then entry.scaleNode.scale = [1.08,1.08] else entry.scaleNode.scale = [1.0,1.0]
+        end if
     end for
 end sub
